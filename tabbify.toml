@@ -1,0 +1,29 @@
+[app]
+id          = "019e7903-0000-7000-8000-000000000f01"
+name        = "fc-node"
+description = "A Tabbify node that runs inside a Firecracker microVM (recursive self-host). dockerd + supervisor come up inside; the VM joins the mesh as its own node."
+
+[build]
+kind       = "docker"        # built as an OCI image…
+context    = "."
+dockerfile = "Dockerfile"
+builder    = "ec2-serving"   # build on a docker-capable supervisor; ThinkPad (FC host) has no docker tag
+
+[runtime]
+type             = "firecracker"   # …but deployed as a microVM (generic-FC: OCI -> ext4 -> boot)
+lifecycle        = "always_on"     # a standing node, not lazy-spawn-on-request
+idle_timeout_sec = 0
+memory_mb        = 2048            # NixOS-free: just dind + supervisor; 2 GiB headroom for nested builds
+vcpus            = 4
+
+[routes]
+# The node's control API is reached over the mesh by its own ULA on :8730 — no
+# HTTP routes proxied through the outer supervisor (it is a node, not an app).
+dynamic_prefixes = []
+
+[[deploy]]
+supervisor = "thinkpad"   # boot the microVM on the ThinkPad (firecracker-tagged)
+runtime    = "firecracker"
+
+[env]
+# Coordinator EIP is baked into supervisord; no extra mesh config needed.
