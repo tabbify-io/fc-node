@@ -4,8 +4,10 @@
 # The TP then swaps /opt/tabbify/vmlinux to this and the in-VM dockerd can run
 # real containers (bridge + veth + iptables NAT + overlay2).
 set -e
-S3="s3://tabbify-releases-leo/firecracker"
-URL="https://tabbify-releases-leo.s3.amazonaws.com/firecracker/vmlinux-6.1.128-docker"
+# Public release prefix (bucket policy grants anonymous GetObject on supervisor/*),
+# so the TP can fetch the kernel the same way the OTA fetches supervisord.
+S3="s3://tabbify-releases-leo/supervisor/kernel"
+URL="https://tabbify-releases-leo.s3.amazonaws.com/supervisor/kernel/vmlinux-6.1.128-docker"
 
 echo "=== disk before ==="
 df -h / /var/lib/docker 2>/dev/null | sort -u
@@ -35,9 +37,9 @@ ls -la /tmp/fckout/
 SHA=$(cat /tmp/fckout/vmlinux.sha256)
 echo "sha256=$SHA"
 
-echo "=== upload to S3 ==="
-aws s3 cp /tmp/fckout/vmlinux        "$S3/vmlinux-6.1.128-docker"
-aws s3 cp /tmp/fckout/vmlinux.sha256 "$S3/vmlinux-6.1.128-docker.sha256"
+echo "=== upload to S3 (best-effort; needs PutObject creds — GHA OIDC, or use a presigned PUT) ==="
+aws s3 cp /tmp/fckout/vmlinux        "$S3/vmlinux-6.1.128-docker"        || echo "WARN: PutObject denied — vmlinux left at /tmp/fckout/vmlinux for presigned-PUT upload"
+aws s3 cp /tmp/fckout/vmlinux.sha256 "$S3/vmlinux-6.1.128-docker.sha256" || true
 
 echo "=== verify public fetch ==="
 curl -fsI "$URL" >/dev/null && echo "PUBLIC OK: $URL" || echo "WARN: $URL not publicly fetchable (may need --acl public-read or bucket policy)"

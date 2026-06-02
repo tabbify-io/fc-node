@@ -9,7 +9,7 @@ set -u
 UUID="019e7903-0000-7000-8000-000000000f01"
 TP="fd5a:1f00:0:4::1"
 REF="[fd5a:1f00:0:3::1]:5000/tabbify/019e7903-0000-7000-8000-000000000f01@sha256:d75bca2bf4cc050833b2d27cde5f041074831dd82777139199cd2aeee46351aa"
-KURL="https://tabbify-releases-leo.s3.amazonaws.com/firecracker/vmlinux-6.1.128-docker"
+KURL="https://tabbify-releases-leo.s3.amazonaws.com/supervisor/kernel/vmlinux-6.1.128-docker"
 
 echo "=== fetch + verify docker-capable kernel ==="
 curl -fL "$KURL" -o /opt/tabbify/vmlinux.new || { echo "kernel fetch failed (built+uploaded yet?)"; exit 1; }
@@ -18,7 +18,13 @@ GOT=$(sha256sum /opt/tabbify/vmlinux.new | awk '{print $1}')
 echo "expected=$EXP"
 echo "got     =$GOT"
 [ -n "$EXP" ] && [ "$EXP" != "$GOT" ] && { echo "CHECKSUM MISMATCH — aborting"; rm -f /opt/tabbify/vmlinux.new; exit 1; }
-file /opt/tabbify/vmlinux.new | grep -q "ELF 64-bit" || { echo "not an ELF vmlinux — aborting"; rm -f /opt/tabbify/vmlinux.new; exit 1; }
+# ELF sanity — best-effort: skip if `file` is absent (NixOS minimal), and only
+# abort if `file` is present AND says it's not an ELF. Also reject tiny files.
+SZ=$(stat -c%s /opt/tabbify/vmlinux.new 2>/dev/null || echo 0)
+[ "$SZ" -gt 1000000 ] || { echo "kernel suspiciously small ($SZ bytes) — aborting"; rm -f /opt/tabbify/vmlinux.new; exit 1; }
+if command -v file >/dev/null 2>&1; then
+  file /opt/tabbify/vmlinux.new | grep -q "ELF" || { echo "not an ELF vmlinux — aborting"; rm -f /opt/tabbify/vmlinux.new; exit 1; }
+fi
 
 echo "=== swap kernel (backup stock) + restart supervisor ==="
 [ -f /opt/tabbify/vmlinux.stock.bak ] || cp -a /opt/tabbify/vmlinux /opt/tabbify/vmlinux.stock.bak 2>/dev/null || true
