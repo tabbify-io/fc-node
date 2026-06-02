@@ -7,7 +7,7 @@
 # dockerd starts, and the :8080 readiness shim binds inside the VM.
 UUID="019e7903-0000-7000-8000-000000000f01"
 TP="fd5a:1f00:0:4::1"
-REF="[fd5a:1f00:0:3::1]:5000/tabbify/019e7903-0000-7000-8000-000000000f01@sha256:5de2c14bd11067c90a840a7c9824cdcf395c95a3a34f61c79b72e0b4e954bd48"
+REF="[fd5a:1f00:0:3::1]:5000/tabbify/019e7903-0000-7000-8000-000000000f01@sha256:33be4137d00c9fada10068f9a4b9f190ae557ac916cfbf05249a25fae25311d3"
 
 echo "=== enable SUPERVISOR_FC_DEBUG via systemd drop-in + restart ==="
 mkdir -p /etc/systemd/system/tabbify-supervisor.service.d
