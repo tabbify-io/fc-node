@@ -7,7 +7,7 @@
 # and the 180s start-healthy gate gives the FC build time to come up.
 UUID="019e7903-0000-7000-8000-000000000f01"
 TP="fd5a:1f00:0:4::1"
-REF="[fd5a:1f00:0:3::1]:5000/tabbify/019e7903-0000-7000-8000-000000000f01@sha256:540201ffb8cd772df27029b5692a4848936f064784bd6fcb5f067463877b26e3"
+REF="[fd5a:1f00:0:3::1]:5000/tabbify/019e7903-0000-7000-8000-000000000f01@sha256:5de2c14bd11067c90a840a7c9824cdcf395c95a3a34f61c79b72e0b4e954bd48"
 
 echo "=== supervisor version (want 1.4.7) ==="
 journalctl -u tabbify-supervisor --no-pager 2>/dev/null | grep -iE "promoted|self-update|version=|1\.4\.7" | tail -3 || echo "(check journal manually)"
