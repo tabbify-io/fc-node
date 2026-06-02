@@ -1,0 +1,49 @@
+# syntax=docker/dockerfile:1
+#
+# Builds a docker/dind-capable x86_64 Firecracker GUEST kernel (uncompressed ELF
+# vmlinux — NOT bzImage). Base = firecracker's own CI 6.1 config (already boots
+# under our boot_args and has BRIDGE/VETH/OVERLAY_FS/NF_NAT/NF_TABLES =y); the
+# fragment closes the gaps that make in-VM dockerd's iptables rules fail on the
+# stock kernel: TUN, the xt-matches (multiport/mark/state), NFT_MASQ, and both
+# iptables backends (legacy IP_NF_* + nft NFT_COMPAT) so whichever the alpine
+# dind userland resolves to works. CONFIG_MODULES is NOT set in the base, so
+# EVERYTHING must be =y — a stray =m is silently dropped (no modprobe in a
+# microVM). The fail-fast grep guard catches that.
+#
+# Build + extract (on an x86_64 host with docker + BuildKit):
+#   DOCKER_BUILDKIT=1 docker build -f Dockerfile.fckernel \
+#     --target export --output type=local,dest=./out .
+#   file out/vmlinux   # MUST be: ELF 64-bit LSB executable, x86-64
+FROM debian:bookworm AS builder
+ARG KVER=6.1.128
+ARG FC_REF=v1.12
+ARG JOBS=4
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential bc bison flex libelf-dev libssl-dev \
+      curl ca-certificates xz-utils kmod cpio perl rsync gawk \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+RUN curl -fsSL https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KVER}.tar.xz -o linux.tar.xz \
+  && tar -xf linux.tar.xz && rm linux.tar.xz
+WORKDIR /build/linux-${KVER}
+# Base = firecracker CI 6.1 config (monolithic; CONFIG_MODULES not set).
+RUN curl -fsSL \
+   "https://raw.githubusercontent.com/firecracker-microvm/firecracker/${FC_REF}/resources/guest_configs/microvm-kernel-ci-x86_64-6.1.config" \
+   -o .config
+# Docker fragment: the gaps + belt-and-suspenders asserts (all =y).
+COPY docker.fragment /tmp/docker.fragment
+RUN ./scripts/kconfig/merge_config.sh -m .config /tmp/docker.fragment && make olddefconfig
+# Fail-fast: load-bearing flags MUST be =y (catches a silent =m drop).
+RUN set -e; for f in \
+      CONFIG_BRIDGE CONFIG_VETH CONFIG_OVERLAY_FS CONFIG_TUN CONFIG_VLAN_8021Q \
+      CONFIG_NF_NAT CONFIG_IP_NF_TARGET_MASQUERADE CONFIG_NF_TABLES CONFIG_NFT_NAT \
+      CONFIG_NFT_MASQ CONFIG_NFT_COMPAT CONFIG_BRIDGE_NETFILTER \
+      CONFIG_NETFILTER_XT_MATCH_MULTIPORT CONFIG_NETFILTER_XT_MATCH_STATE \
+      CONFIG_VIRTIO_MMIO CONFIG_VIRTIO_BLK CONFIG_VIRTIO_NET CONFIG_SERIAL_8250_CONSOLE ; do \
+      grep -q "^$f=y" .config || { echo "MISSING $f"; exit 1; }; done
+RUN make -j"${JOBS}" vmlinux
+RUN mkdir -p /out && cp vmlinux /out/vmlinux \
+  && sha256sum /out/vmlinux | awk '{print $1}' > /out/vmlinux.sha256 \
+  && file /out/vmlinux | tee /out/vmlinux.file
+FROM scratch AS export
+COPY --from=builder /out/ /
