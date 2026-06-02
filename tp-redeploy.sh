@@ -9,8 +9,15 @@ UUID="019e7903-0000-7000-8000-000000000f01"
 TP="fd5a:1f00:0:4::1"
 REF="[fd5a:1f00:0:3::1]:5000/tabbify/019e7903-0000-7000-8000-000000000f01@sha256:33be4137d00c9fada10068f9a4b9f190ae557ac916cfbf05249a25fae25311d3"
 
+echo "=== trigger OTA to latest (v1.4.8) + wait for it to settle ==="
+# Idempotent: a no-op if already on latest. Fetches -> probes -> swaps ->
+# restarts the supervisor; the post-restart watchdog confirms (~45s).
+systemctl start tabbify-update 2>&1 | tail -3 || echo "(tabbify-update run; see journal)"
+echo "waiting 70s for self-update swap + restart + watchdog confirm…"
+sleep 70
+
 echo "=== supervisor version (want 1.4.8) ==="
-journalctl -u tabbify-supervisor --no-pager 2>/dev/null | grep -iE "self-update|version=|1\.4\.8" | tail -3 || echo "(check journal manually)"
+journalctl -u tabbify-supervisor --no-pager 2>/dev/null | grep -iE "self-update confirmed|version=v1\.4\.8|swap.*v1\.4\.8" | tail -3 || echo "(check journal manually)"
 
 echo "=== PURGE stale record ==="
 curl -sS -X POST "http://[$TP]:8730/v1/apps/$UUID/purge"; echo
