@@ -10,6 +10,15 @@ URL="https://tabbify-releases-leo.s3.amazonaws.com/firecracker/vmlinux-6.1.128-d
 echo "=== disk before ==="
 df -h / /var/lib/docker 2>/dev/null | sort -u
 
+# Safety net for the 2GB build host: ensure ~4GB swap so the vmlinux link can't
+# OOM-kill the co-located live mesh containers. Idempotent + best-effort.
+if [ ! -f /swapfile.fck ]; then
+  echo "=== adding 4G swapfile (OOM safety) ==="
+  fallocate -l 4G /swapfile.fck 2>/dev/null || dd if=/dev/zero of=/swapfile.fck bs=1M count=4096
+  chmod 600 /swapfile.fck && mkswap /swapfile.fck >/dev/null 2>&1 && swapon /swapfile.fck || echo "(swap setup skipped)"
+fi
+free -m | head -3
+
 echo "=== clone fc-node kernel/ ==="
 rm -rf /tmp/fck && git clone --depth 1 https://github.com/tabbify-io/fc-node /tmp/fck
 cd /tmp/fck/kernel

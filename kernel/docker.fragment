@@ -22,6 +22,10 @@ CONFIG_IPVLAN=y
 CONFIG_DUMMY=y
 CONFIG_BRIDGE_VLAN_FILTERING=y
 
+# --- shrink: no debug info -> far less link RAM, smaller vmlinux, faster build ---
+# (matters on the 2-vCPU/2GB build host; also makes the kernel cheaper to ship.)
+CONFIG_DEBUG_INFO_NONE=y
+
 # --- belt-and-suspenders: already =y in base, asserted so a regression is loud ---
 CONFIG_BRIDGE=y
 CONFIG_VETH=y
