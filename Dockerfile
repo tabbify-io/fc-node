@@ -22,7 +22,9 @@ ARG RELEASE_BASE=https://tabbify-releases-leo.s3.eu-central-1.amazonaws.com
 # tini = a real PID-1 that reaps dockerd's grandchildren (containerd-shim, etc.).
 # git + ca-certificates so the in-VM build runner can `git clone` apps deployed
 # into this node. iproute2 for the supervisor's tap/route setup. curl is build-only.
-RUN apk add --no-cache tini git ca-certificates iproute2 curl \
+# busybox-extras provides the `httpd` applet used by entrypoint.sh as the
+# :8080 readiness shim for the outer generic-firecracker health probe.
+RUN apk add --no-cache tini git ca-certificates iproute2 busybox-extras curl \
  && curl -fsSL "$RELEASE_BASE/supervisor/$SUP_VERSION/$ARCH/supervisord"    -o /usr/local/bin/supervisord \
  && curl -fsSL "$RELEASE_BASE/supervisor/$SUP_VERSION/$ARCH/tabbify-runner" -o /usr/local/bin/tabbify-runner \
  && chmod +x /usr/local/bin/supervisord /usr/local/bin/tabbify-runner \
