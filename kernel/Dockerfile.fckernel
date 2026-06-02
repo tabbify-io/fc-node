@@ -16,7 +16,7 @@
 #   file out/vmlinux   # MUST be: ELF 64-bit LSB executable, x86-64
 FROM debian:bookworm AS builder
 ARG KVER=6.1.128
-ARG FC_REF=v1.12
+ARG FC_REF=v1.12.0
 ARG JOBS=4
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential bc bison flex libelf-dev libssl-dev \
