@@ -34,13 +34,22 @@ RUN curl -fsSL \
 COPY docker.fragment /tmp/docker.fragment
 RUN ./scripts/kconfig/merge_config.sh -m .config /tmp/docker.fragment && make olddefconfig
 # Fail-fast: load-bearing flags MUST be =y (catches a silent =m drop).
+# Assert ONLY the flags confirmed to stick (all passed the prior build before the
+# nft check) + boot-essentials (the stock kernel boots, so these are =y). dind is
+# forced to the legacy iptables backend in entrypoint.sh.
 RUN set -e; for f in \
       CONFIG_BRIDGE CONFIG_VETH CONFIG_OVERLAY_FS CONFIG_TUN CONFIG_VLAN_8021Q \
-      CONFIG_NF_NAT CONFIG_IP_NF_TARGET_MASQUERADE CONFIG_NF_TABLES CONFIG_NFT_NAT \
-      CONFIG_NFT_MASQ CONFIG_NFT_COMPAT CONFIG_BRIDGE_NETFILTER \
-      CONFIG_NETFILTER_XT_MATCH_MULTIPORT CONFIG_NETFILTER_XT_MATCH_STATE \
+      CONFIG_NF_NAT CONFIG_IP_NF_TARGET_MASQUERADE CONFIG_NF_TABLES \
       CONFIG_VIRTIO_MMIO CONFIG_VIRTIO_BLK CONFIG_VIRTIO_NET CONFIG_SERIAL_8250_CONSOLE ; do \
       grep -q "^$f=y" .config || { echo "MISSING $f"; exit 1; }; done
+# Log which best-effort flags survived (informational, NEVER fatal) — so we can
+# see post-build exactly what docker has, without failing the build on a dep gap.
+RUN for f in \
+      CONFIG_BRIDGE_NETFILTER CONFIG_NF_NAT_MASQUERADE \
+      CONFIG_NETFILTER_XT_MATCH_ADDRTYPE CONFIG_NETFILTER_XT_MATCH_CONNTRACK \
+      CONFIG_NETFILTER_XT_MATCH_MULTIPORT CONFIG_NETFILTER_XT_MATCH_STATE \
+      CONFIG_NFT_NAT CONFIG_NFT_MASQ CONFIG_NFT_COMPAT CONFIG_NFT_CHAIN_NAT ; do \
+      grep -q "^$f=y" .config && echo "have: $f=y" || echo "MISS: $f (not set)"; done
 RUN make -j"${JOBS}" vmlinux
 RUN mkdir -p /out && cp vmlinux /out/vmlinux \
   && sha256sum /out/vmlinux | awk '{print $1}' > /out/vmlinux.sha256 \

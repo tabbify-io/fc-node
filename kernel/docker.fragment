@@ -1,11 +1,15 @@
 # Kernel CONFIG fragment merged over firecracker's microvm-kernel-ci-x86_64-6.1.config
 # to make dockerd/dind actually run containers inside the Firecracker guest.
 # Everything =y (the base has CONFIG_MODULES unset; =m would be silently dropped).
+#
+# Strategy: the base config already has the LEGACY iptables path (IP_NF_*) fully
+# =y; dind is forced to the legacy backend in entrypoint.sh, so the nft flags
+# below are best-effort (enabled if deps allow, not asserted). The asserted set
+# (see Dockerfile.fckernel) is the legacy + shared path that reliably sticks.
 
-# --- the real gaps in the stock CI config ---
+# --- the real gaps in the stock CI config (these stick; shared by both backends) ---
 CONFIG_TUN=y
 CONFIG_VLAN_8021Q=y
-CONFIG_NFT_MASQ=y
 CONFIG_NETFILTER_XT_MATCH_MULTIPORT=y
 CONFIG_NETFILTER_XT_MATCH_MARK=y
 CONFIG_NETFILTER_XT_MATCH_STATE=y
@@ -13,7 +17,6 @@ CONFIG_NETFILTER_XT_MATCH_COMMENT=y
 CONFIG_NETFILTER_XT_MATCH_OWNER=y
 CONFIG_NETFILTER_XT_MATCH_PHYSDEV=y
 CONFIG_NETFILTER_XT_TARGET_REDIRECT=y
-CONFIG_NFT_REDIR=y
 
 # --- extra net drivers (cheap; future overlay/swarm, ipvlan/macvlan) ---
 CONFIG_VXLAN=y
@@ -22,8 +25,19 @@ CONFIG_IPVLAN=y
 CONFIG_DUMMY=y
 CONFIG_BRIDGE_VLAN_FILTERING=y
 
+# --- nft path: best-effort (docker forced to legacy in entrypoint; not asserted) ---
+CONFIG_NF_CONNTRACK=y
+CONFIG_NF_TABLES_IPV4=y
+CONFIG_NF_TABLES_IPV6=y
+CONFIG_NF_TABLES_INET=y
+CONFIG_NFT_CT=y
+CONFIG_NFT_CHAIN_NAT=y
+CONFIG_NFT_NAT=y
+CONFIG_NFT_MASQ=y
+CONFIG_NFT_COMPAT=y
+CONFIG_NFT_REDIR=y
+
 # --- shrink: no debug info -> far less link RAM, smaller vmlinux, faster build ---
-# (matters on the 2-vCPU/2GB build host; also makes the kernel cheaper to ship.)
 CONFIG_DEBUG_INFO_NONE=y
 
 # --- belt-and-suspenders: already =y in base, asserted so a regression is loud ---
@@ -35,6 +49,4 @@ CONFIG_NF_NAT=y
 CONFIG_NF_NAT_MASQUERADE=y
 CONFIG_IP_NF_TARGET_MASQUERADE=y
 CONFIG_NF_TABLES=y
-CONFIG_NFT_NAT=y
-CONFIG_NFT_COMPAT=y
 CONFIG_SECCOMP_FILTER=y

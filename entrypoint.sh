@@ -37,6 +37,16 @@ mkdir -p /dev/shm        && mount -t tmpfs  shm    /dev/shm      2>/dev/null || 
 mkdir -p /dev/pts        && mount -t devpts devpts /dev/pts      2>/dev/null || true
 mkdir -p /dev/mqueue     && mount -t mqueue mqueue /dev/mqueue   2>/dev/null || true
 
+# --- prefer iptables-legacy ----------------------------------------------------
+# Our custom guest kernel has the LEGACY netfilter path (IP_NF_*) fully built-in;
+# the nft path may be incomplete. Point dind's iptables at the legacy backend so
+# dockerd's bridge/NAT rules install reliably. Best-effort + idempotent.
+for b in iptables ip6tables; do
+  for p in /usr/sbin /sbin; do
+    [ -x "$p/$b-legacy" ] && ln -sf "$p/$b-legacy" "$p/$b" 2>/dev/null || true
+  done
+done
+
 # --- dockerd (best-effort) ----------------------------------------------------
 echo "[fc-node] starting dockerd…"
 dockerd-entrypoint.sh dockerd >/var/log/dockerd.log 2>&1 &
