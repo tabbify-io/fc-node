@@ -1,39 +1,59 @@
 #!/bin/sh
-# PID-managed by tini. Brings up dockerd inside the microVM, then hands off to
-# the tabbify-supervisor (which self-detects docker -> reachable, joins the mesh,
-# and runs the orchestrator — making this VM a Tabbify node).
-set -eu
+# PID-1 child of tini, exec'd by the supervisor-generated /init (which mounts
+# only /proc /sys /dev). A bare Firecracker microVM is NOT a privileged docker
+# container, so nothing sets up the cgroup2/devpts/mqueue/run hierarchy dockerd
+# needs, nor (if /dev fell back to an empty tmpfs) the core device nodes. We do
+# all of that here, then:
+#   1. bring up a :8080 readiness shim BEFORE dockerd — the outer generic-FC
+#      runtime HTTP-probes the guest tap-IP:8080 within ~30s to keep the VM
+#      alive; dockerd cold-start in a fresh microVM can exceed that window.
+#   2. start dockerd (best-effort).
+#   3. ALWAYS exec the tabbify-supervisor — the node must join the mesh even if
+#      dockerd is degraded (the supervisor advertises the `docker` capability
+#      only when the daemon is reachable). Coupling the supervisor's existence
+#      to dockerd would kill the VM (panic=1) right after the probe went green.
+#
+# `set -u` only (NOT -e): almost every step below is best-effort and an already
+# -mounted fs / missing node must never abort PID 1 and panic the kernel.
+set -u
 
-# Readiness shim FIRST — before dockerd. The OUTER generic-firecracker runtime
-# HTTP-probes the guest at tap-IP:8080 within ~30s of boot to decide the microVM
-# is healthy and keep it alive; our real node control API is the in-VM
-# supervisor's mesh-ULA:8730 (unreachable on the tap). dockerd cold-start in a
-# fresh microVM can exceed that 30s window, so the shim must answer IMMEDIATELY
-# on boot — independent of dockerd — or the outer probe times out and the VM is
-# killed before it can come up. Serve a trivial 200 on :8080 right away.
+# --- core device nodes (in case /dev is an empty tmpfs, not devtmpfs) ---------
+[ -e /dev/null ]    || mknod -m 666 /dev/null    c 1 3   2>/dev/null || true
+[ -e /dev/zero ]    || mknod -m 666 /dev/zero    c 1 5   2>/dev/null || true
+[ -e /dev/random ]  || mknod -m 666 /dev/random  c 1 8   2>/dev/null || true
+[ -e /dev/urandom ] || mknod -m 666 /dev/urandom c 1 9   2>/dev/null || true
+[ -e /dev/console ] || mknod -m 600 /dev/console c 5 1   2>/dev/null || true
+mkdir -p /dev/net && { [ -e /dev/net/tun ] || mknod /dev/net/tun c 10 200 2>/dev/null || true; }
+
+# --- readiness shim FIRST (busybox-extras httpd; daemonizes) ------------------
 mkdir -p /tmp/health && printf 'ok\n' > /tmp/health/index.html
-# busybox httpd daemonizes (forks to background); reparented to tini after exec.
-httpd -p 0.0.0.0:8080 -h /tmp/health && echo "[fc-node] readiness shim on :8080 up (pre-dockerd)"
+httpd -p 0.0.0.0:8080 -h /tmp/health 2>/dev/null || echo "[fc-node] WARN :8080 shim failed to bind" >&2
+echo "[fc-node] readiness shim on :8080 (pre-dockerd)"
 
+# --- mounts dockerd/dind need that the generated /init does not provide -------
+mkdir -p /sys/fs/cgroup && mount -t cgroup2 none   /sys/fs/cgroup 2>/dev/null || true
+mkdir -p /run /run/lock  && mount -t tmpfs  tmpfs  /run          2>/dev/null || true
+mkdir -p /dev/shm        && mount -t tmpfs  shm    /dev/shm      2>/dev/null || true
+mkdir -p /dev/pts        && mount -t devpts devpts /dev/pts      2>/dev/null || true
+mkdir -p /dev/mqueue     && mount -t mqueue mqueue /dev/mqueue   2>/dev/null || true
+
+# --- dockerd (best-effort) ----------------------------------------------------
 echo "[fc-node] starting dockerd…"
-# docker:dind's entrypoint sets up cgroups/iptables and launches dockerd.
 dockerd-entrypoint.sh dockerd >/var/log/dockerd.log 2>&1 &
 
-echo "[fc-node] waiting for dockerd socket…"
+echo "[fc-node] waiting for dockerd socket (best-effort, max 60s)…"
 i=0
 until docker info >/dev/null 2>&1; do
   i=$((i + 1))
-  if [ "$i" -gt 120 ]; then
-    echo "[fc-node] FATAL: dockerd did not become ready in 120s" >&2
-    echo "---- dockerd.log ----" >&2
-    cat /var/log/dockerd.log >&2 || true
-    exit 1
+  if [ "$i" -gt 60 ]; then
+    echo "[fc-node] WARN dockerd not ready in 60s; joining mesh WITHOUT docker tag" >&2
+    tail -n 40 /var/log/dockerd.log >&2 2>/dev/null || true
+    break
   fi
   sleep 1
 done
-echo "[fc-node] dockerd is up; starting tabbify-supervisor"
+[ "$i" -le 60 ] && echo "[fc-node] dockerd is up"
 
-# Hand off. The supervisor now advertises the `docker` capability (daemon is
-# reachable) plus `firecracker`/`wasm` as detected, joins the mesh with its own
-# ULA, and accepts deploys over the mesh.
+# --- hand off to the supervisor UNCONDITIONALLY -------------------------------
+echo "[fc-node] starting tabbify-supervisor (joins mesh)"
 exec supervisord

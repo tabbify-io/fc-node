@@ -9,9 +9,13 @@
 # dockerd builds + runs them and pushes to the mesh registry (which host-netns
 # docker on the serving box could not reach — the recursive node fixes that).
 #
-# Base = docker-in-docker: its entrypoint already sets up cgroups + starts
-# dockerd in a constrained environment, which is exactly what we need in a VM.
-FROM docker:27.3.1-dind
+# Base = docker-in-docker. NOTE: dind's entrypoint assumes a privileged docker
+# *container* parent already bind-mounted cgroup2/devpts/mqueue/run; a bare
+# Firecracker microVM provides none of these, so our entrypoint.sh mounts them
+# itself before starting dockerd. Pin the platform: the base is multi-arch and
+# would otherwise resolve to the *builder's* arch — the x86_64 ThinkPad host
+# rejects a non-amd64 rootfs at conversion (guard_arch_matches_host).
+FROM --platform=linux/amd64 docker:27.3.1-dind
 
 # x86_64 ThinkPad is the Веха-1 host. The supervisord/tabbify-runner binaries are
 # static-musl, so they run on this Alpine base unchanged.
@@ -29,6 +33,11 @@ RUN apk add --no-cache tini git ca-certificates iproute2 busybox-extras curl \
  && curl -fsSL "$RELEASE_BASE/supervisor/$SUP_VERSION/$ARCH/tabbify-runner" -o /usr/local/bin/tabbify-runner \
  && chmod +x /usr/local/bin/supervisord /usr/local/bin/tabbify-runner \
  && apk del curl
+
+# The guest kernel ip= autoconfig gives no resolver to musl userland; the mesh
+# join dials the coordinator by raw IP (no DNS needed), but in-VM `oras`/docker
+# pulls resolve hostnames. Bake a public resolver so downstream deploys work.
+RUN printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' > /etc/resolv.conf
 
 COPY entrypoint.sh /usr/local/bin/fc-node-entrypoint
 RUN chmod +x /usr/local/bin/fc-node-entrypoint
