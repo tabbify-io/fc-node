@@ -26,10 +26,17 @@ WORKDIR /build
 RUN curl -fsSL https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KVER}.tar.xz -o linux.tar.xz \
   && tar -xf linux.tar.xz && rm linux.tar.xz
 WORKDIR /build/linux-${KVER}
-# Base = firecracker CI 6.1 config (monolithic; CONFIG_MODULES not set).
-RUN curl -fsSL \
-   "https://raw.githubusercontent.com/firecracker-microvm/firecracker/${FC_REF}/resources/guest_configs/microvm-kernel-ci-x86_64-6.1.config" \
-   -o .config
+# Base config = the EXACT config of AWS's WORKING stock vmlinux-6.1.128, extracted
+# from its embedded CONFIG_IKCONFIG. The firecracker repo's checked-in
+# microvm-kernel-ci config does NOT match the shipped binary and panics our boot
+# ("Cannot open root device vda"); the stock kernel's own config boots. So we
+# reproduce that ground-truth config, then add docker on top.
+ARG STOCK_KERNEL_URL=https://s3.amazonaws.com/spec.ccfc.min/firecracker-ci/v1.12/x86_64/vmlinux-6.1.128
+RUN curl -fsSL "$STOCK_KERNEL_URL" -o /tmp/stock-vmlinux \
+ && bash scripts/extract-ikconfig /tmp/stock-vmlinux > .config \
+ && grep -q '^CONFIG_VIRTIO_BLK=y' .config \
+ && grep -q '^CONFIG_VIRTIO_MMIO=y' .config \
+ || { echo "extract-ikconfig produced an invalid/incomplete config"; head -5 .config; exit 1; }
 # Docker fragment: the gaps + belt-and-suspenders asserts (all =y).
 COPY docker.fragment /tmp/docker.fragment
 RUN ./scripts/kconfig/merge_config.sh -m .config /tmp/docker.fragment && make olddefconfig
@@ -38,7 +45,7 @@ RUN ./scripts/kconfig/merge_config.sh -m .config /tmp/docker.fragment && make ol
 # nft check) + boot-essentials (the stock kernel boots, so these are =y). dind is
 # forced to the legacy iptables backend in entrypoint.sh.
 RUN set -e; for f in \
-      CONFIG_VIRTIO_MMIO CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES CONFIG_VIRTIO_BLK \
+      CONFIG_VIRTIO_MMIO CONFIG_VIRTIO_BLK \
       CONFIG_VIRTIO_NET CONFIG_EXT4_FS CONFIG_SERIAL_8250_CONSOLE \
       CONFIG_BRIDGE CONFIG_VETH CONFIG_OVERLAY_FS CONFIG_TUN CONFIG_VLAN_8021Q \
       CONFIG_NF_NAT CONFIG_IP_NF_TARGET_MASQUERADE CONFIG_NF_TABLES ; do \

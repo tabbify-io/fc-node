@@ -13,10 +13,12 @@
 # /dev/vda never appears and the kernel panics: "Cannot open root device vda".
 # (This is exactly what broke the first build — the base config / olddefconfig
 # did not carry CMDLINE_DEVICES.)
+# NOTE: base config is now the stock kernel's own (already boots vda), so these
+# are belt-and-suspenders no-ops. Do NOT add CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES —
+# the working stock kernel has it OFF; forcing it ON diverges from the known-good
+# boot path.
 CONFIG_VIRTIO=y
-CONFIG_VIRTIO_MENU=y
 CONFIG_VIRTIO_MMIO=y
-CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES=y
 CONFIG_VIRTIO_BLK=y
 CONFIG_VIRTIO_NET=y
 CONFIG_BLK_DEV=y
