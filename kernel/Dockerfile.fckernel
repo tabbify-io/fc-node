@@ -38,9 +38,10 @@ RUN ./scripts/kconfig/merge_config.sh -m .config /tmp/docker.fragment && make ol
 # nft check) + boot-essentials (the stock kernel boots, so these are =y). dind is
 # forced to the legacy iptables backend in entrypoint.sh.
 RUN set -e; for f in \
+      CONFIG_VIRTIO_MMIO CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES CONFIG_VIRTIO_BLK \
+      CONFIG_VIRTIO_NET CONFIG_EXT4_FS CONFIG_SERIAL_8250_CONSOLE \
       CONFIG_BRIDGE CONFIG_VETH CONFIG_OVERLAY_FS CONFIG_TUN CONFIG_VLAN_8021Q \
-      CONFIG_NF_NAT CONFIG_IP_NF_TARGET_MASQUERADE CONFIG_NF_TABLES \
-      CONFIG_VIRTIO_MMIO CONFIG_VIRTIO_BLK CONFIG_VIRTIO_NET CONFIG_SERIAL_8250_CONSOLE ; do \
+      CONFIG_NF_NAT CONFIG_IP_NF_TARGET_MASQUERADE CONFIG_NF_TABLES ; do \
       grep -q "^$f=y" .config || { echo "MISSING $f"; exit 1; }; done
 # Log which best-effort flags survived (informational, NEVER fatal) — so we can
 # see post-build exactly what docker has, without failing the build on a dep gap.

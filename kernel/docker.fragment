@@ -7,6 +7,21 @@
 # below are best-effort (enabled if deps allow, not asserted). The asserted set
 # (see Dockerfile.fckernel) is the legacy + shared path that reliably sticks.
 
+# --- BOOT-CRITICAL: virtio-mmio root device (root=/dev/vda) --------------------
+# Firecracker passes the rootfs as a virtio-mmio device via `virtio_mmio.device=`
+# on the kernel cmdline. Without CMDLINE_DEVICES the kernel IGNORES that arg, so
+# /dev/vda never appears and the kernel panics: "Cannot open root device vda".
+# (This is exactly what broke the first build — the base config / olddefconfig
+# did not carry CMDLINE_DEVICES.)
+CONFIG_VIRTIO=y
+CONFIG_VIRTIO_MENU=y
+CONFIG_VIRTIO_MMIO=y
+CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES=y
+CONFIG_VIRTIO_BLK=y
+CONFIG_VIRTIO_NET=y
+CONFIG_BLK_DEV=y
+CONFIG_EXT4_FS=y
+
 # --- the real gaps in the stock CI config (these stick; shared by both backends) ---
 CONFIG_TUN=y
 CONFIG_VLAN_8021Q=y
