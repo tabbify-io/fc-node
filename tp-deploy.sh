@@ -5,7 +5,9 @@
 set -u
 TP="fd5a:1f00:0:4::1"
 UUID="019e7903-0000-7000-8000-000000000f01"
-REF="[fd5a:1f00:0:3::1]:5000/tabbify/019e7903-0000-7000-8000-000000000f01:773c2cdb2cb5df7ce317633483d76aa0b2219492"
+# Digest-pinned ref: generic-firecracker requires @<digest> (immutable) for its
+# rootfs cache — a :tag is rejected. This is the shimmed image (773c2cd).
+REF="[fd5a:1f00:0:3::1]:5000/tabbify/019e7903-0000-7000-8000-000000000f01@sha256:540201ffb8cd772df27029b5692a4848936f064784bd6fcb5f067463877b26e3"
 
 echo "=== DEPLOY ==="
 curl -sS -X POST "http://[$TP]:8730/v1/apps/$UUID/deploy" \
