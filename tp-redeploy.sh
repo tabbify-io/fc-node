@@ -26,6 +26,6 @@ sleep 90
 echo "=== RUNNER LOG (last 35) ==="
 tail -35 /opt/tabbify/data/runners/$UUID.log 2>/dev/null || echo "no runner log"
 echo "=== FC CONSOLE ==="
-tail -40 /opt/tabbify/fc/$UUID.console.log 2>/dev/null || echo "no FC console"
+tail -40 /opt/tabbify/data/fc/$UUID.console.log 2>/dev/null || echo "no FC console (enable via tp-debug-deploy.sh)"
 echo "=== ROSTER (fc-node joined?) ==="
 curl -s http://3.124.69.92:8888/v1/mesh/peers 2>/dev/null | tr ',' '\n' | grep -iE 'display_name|fd5a:1f00:0' | head -20

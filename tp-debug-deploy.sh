@@ -17,17 +17,19 @@ systemctl restart tabbify-supervisor
 echo "restarted; waiting 25s to rejoin mesh…"; sleep 25
 
 echo "=== purge + deploy (digest, firecracker) ==="
+echo "deploying ref: $REF"
 curl -sS -X POST "http://[$TP]:8730/v1/apps/$UUID/purge"; echo
 sleep 3
 curl -sS -X POST "http://[$TP]:8730/v1/apps/$UUID/deploy" \
   -H "Content-Type: application/json" \
   --data "{\"ref\":\"$REF\",\"runtime\":\"firecracker\"}"
 echo
-echo "=== waiting 100s for build+boot ==="; sleep 100
+echo "=== waiting 40s for build+boot ==="; sleep 40
 
 echo "=== RUNNER LOG (last 25) ==="
 tail -25 /opt/tabbify/data/runners/$UUID.log 2>/dev/null
 echo "=== FC GUEST CONSOLE (kernel -> init -> eth0/dockerd/shim) ==="
-tail -90 /opt/tabbify/fc/$UUID.console.log 2>/dev/null || echo "STILL no console — check ls /opt/tabbify/fc/"
+tail -120 /opt/tabbify/data/fc/$UUID.console.log 2>/dev/null || echo "STILL no console — ls below"
+ls -la /opt/tabbify/data/fc/ 2>/dev/null
 echo "=== ROSTER ==="
 curl -s http://3.124.69.92:8888/v1/mesh/peers 2>/dev/null | tr ',' '\n' | grep -iE 'display_name|fd5a:1f00:0'
