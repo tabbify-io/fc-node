@@ -67,7 +67,11 @@ CONFIG_NFT_REDIR=y
 # apps, which depend on ACPI + have CMDLINE_DEVICES off, are unaffected.
 CONFIG_CMDLINE_BOOL=y
 CONFIG_CMDLINE="acpi=off"
-CONFIG_CMDLINE_EXTEND=y
+# On x86 the builtin CONFIG_CMDLINE is APPENDED to the bootloader (Firecracker)
+# args when CONFIG_CMDLINE_OVERRIDE is NOT set (CMDLINE_EXTEND is ARM-only and
+# does not exist here). So leaving OVERRIDE off appends `acpi=off` to FC's
+# root=/ip=/virtio_mmio.device= args — exactly what we want.
+# CONFIG_CMDLINE_OVERRIDE is not set
 
 # --- default init = /init (generic-FC injects the rendered PID-1 init there as a
 #     regular file). Without this the kernel skips /init and searches
