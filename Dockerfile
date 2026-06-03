@@ -42,6 +42,13 @@ RUN printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' > /etc/resolv.conf
 COPY entrypoint.sh /usr/local/bin/fc-node-entrypoint
 RUN chmod +x /usr/local/bin/fc-node-entrypoint
 
+# The generic-FC build injects the real PID-1 init at /init, but a kernel booting
+# a REAL ext4 root (not an initramfs) searches /sbin/init,/etc/init,/bin/init,
+# /bin/sh — NOT /init — unless built with CONFIG_DEFAULT_INIT=/init. Our custom
+# kernel lacks that, so symlink /sbin/init -> /init for the default search to find
+# the injected init (dangling at image-build, valid at boot once /init exists).
+RUN mkdir -p /sbin && ln -sf /init /sbin/init
+
 ENV SUPERVISOR_DATA_DIR=/var/lib/tabbify
 VOLUME /var/lib/tabbify
 
