@@ -10,7 +10,7 @@ set -u
 UUID=019e7903-0000-7000-8000-000000000f01
 TP=fd5a:1f00:0:4::1
 KURL=https://tabbify-releases-leo.s3.amazonaws.com/supervisor/kernel/vmlinux-6.1.128-docker
-REF="[fd5a:1f00:0:3::1]:5000/tabbify/019e7903-0000-7000-8000-000000000f01@sha256:d75bca2bf4cc050833b2d27cde5f041074831dd82777139199cd2aeee46351aa"
+REF="[fd5a:1f00:0:3::1]:5000/tabbify/019e7903-0000-7000-8000-000000000f01@sha256:fe89bfc84c25955ec255224cc8dda879e30d3e6d8b59c3d46b5a55fd1da708b6"
 
 echo "=== FC_DEBUG (/run drop-in, writable on NixOS) ==="
 mkdir -p /run/systemd/system/tabbify-supervisor.service.d
