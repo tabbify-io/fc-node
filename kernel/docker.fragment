@@ -66,7 +66,17 @@ CONFIG_NFT_REDIR=y
 # mounts). Baked into THIS kernel (not the supervisor cmdline) so stock-kernel FC
 # apps, which depend on ACPI + have CMDLINE_DEVICES off, are unaffected.
 CONFIG_CMDLINE_BOOL=y
-CONFIG_CMDLINE="acpi=off"
+# `cgroup_no_v1=all`: kernel 6.1 defaults to the HYBRID cgroup layout — resource
+# controllers (cpu/memory/pids/io/...) bind to the cgroup *v1* hierarchy, leaving
+# the v2 unified hierarchy (which our entrypoint mounts as `cgroup2`) with an EMPTY
+# `cgroup.controllers`. A real distro's systemd flips this to unified at boot; a
+# bare microVM has no init to do so. With empty v2 controllers, docker:dind's
+# `sed 's/^/+/' < cgroup.controllers > cgroup.subtree_control` writes a bare `+`
+# → EINVAL ("sed: write error") and dockerd never finishes cgroup setup. Disabling
+# v1 for ALL controllers forces them into the v2 hierarchy → cgroup.controllers is
+# populated → dind's subtree_control write succeeds → dockerd starts. Compiling the
+# controllers in (above) was necessary but NOT sufficient without this.
+CONFIG_CMDLINE="acpi=off cgroup_no_v1=all"
 # On x86 the builtin CONFIG_CMDLINE is APPENDED to the bootloader (Firecracker)
 # args when CONFIG_CMDLINE_OVERRIDE is NOT set (CMDLINE_EXTEND is ARM-only and
 # does not exist here). So leaving OVERRIDE off appends `acpi=off` to FC's

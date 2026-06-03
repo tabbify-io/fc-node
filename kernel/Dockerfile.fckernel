@@ -68,7 +68,7 @@ RUN grep -q '^CONFIG_DEFAULT_INIT="/init"' .config \
 # so virtio devices come from the cmdline, not the (broken-on-our-build) ACPI.
 # x86 append-mode: CMDLINE_BOOL=y + CMDLINE set + OVERRIDE NOT set => acpi=off is
 # appended to Firecracker's args (CMDLINE_EXTEND is ARM-only, absent on x86).
-RUN grep -q '^CONFIG_CMDLINE_BOOL=y' .config && grep -q '^CONFIG_CMDLINE="acpi=off"' .config \
+RUN grep -q '^CONFIG_CMDLINE_BOOL=y' .config && grep -q '^CONFIG_CMDLINE="acpi=off cgroup_no_v1=all"' .config \
  && ! grep -q '^CONFIG_CMDLINE_OVERRIDE=y' .config \
  || { echo "BAD CMDLINE config"; grep -i cmdline .config | grep -vi devices || true; exit 1; }
 # Log which best-effort flags survived (informational, NEVER fatal) — so we can
