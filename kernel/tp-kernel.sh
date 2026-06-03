@@ -8,7 +8,7 @@
 set -u
 UUID="019e7903-0000-7000-8000-000000000f01"
 TP="fd5a:1f00:0:4::1"
-REF="[fd5a:1f00:0:3::1]:5000/tabbify/019e7903-0000-7000-8000-000000000f01@sha256:d75bca2bf4cc050833b2d27cde5f041074831dd82777139199cd2aeee46351aa"
+REF="[fd5a:1f00:0:3::1]:5000/tabbify/019e7903-0000-7000-8000-000000000f01@sha256:8239ac45e6ccf0c07f3781387af2828373839d2c6ec07d5b5f9c2c790550a02c"
 KURL="https://tabbify-releases-leo.s3.amazonaws.com/supervisor/kernel/vmlinux-6.1.128-docker"
 
 echo "=== fetch + verify docker-capable kernel ==="
