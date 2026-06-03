@@ -44,6 +44,13 @@ RUN chmod +x /usr/local/bin/fc-node-entrypoint
 # NOTE: the kernel runs the injected /init via CONFIG_DEFAULT_INIT="/init" (set in
 # kernel/docker.fragment) — no /sbin/init symlink needed (a symlink there loops
 # with dind's base /init and ELOOPs).
+#
+# Make /bin/sh a REAL busybox binary, not a symlink. The OCI->ext4 conversion
+# mangles relative symlink targets (alpine's /bin/sh -> "bin/busybox" resolves to
+# the non-existent /bin/bin/busybox in the ext4), so the kernel cannot exec the
+# /init shell script (#!/bin/sh) -> "No working init found". A regular-file copy
+# survives the conversion verbatim.
+RUN rm -f /bin/sh && cp /bin/busybox /bin/sh && chmod +x /bin/sh
 
 ENV SUPERVISOR_DATA_DIR=/var/lib/tabbify
 VOLUME /var/lib/tabbify

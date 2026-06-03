@@ -54,6 +54,10 @@ RUN set -e; for f in \
 # PID-1). THE fix for the "No working init found" panic.
 RUN grep -q '^CONFIG_DEFAULT_INIT="/init"' .config \
  || { echo "MISSING CONFIG_DEFAULT_INIT=/init"; grep -i default_init .config || true; exit 1; }
+# acpi=off must be baked into the kernel cmdline (EXTEND-appended to FC's args)
+# so virtio devices come from the cmdline, not the (broken-on-our-build) ACPI.
+RUN grep -q '^CONFIG_CMDLINE="acpi=off"' .config && grep -q '^CONFIG_CMDLINE_EXTEND=y' .config \
+ || { echo "MISSING CONFIG_CMDLINE acpi=off / EXTEND"; grep -i cmdline .config | grep -vi devices || true; exit 1; }
 # Log which best-effort flags survived (informational, NEVER fatal) — so we can
 # see post-build exactly what docker has, without failing the build on a dep gap.
 RUN for f in \

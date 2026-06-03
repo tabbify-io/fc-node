@@ -57,6 +57,18 @@ CONFIG_NFT_MASQ=y
 CONFIG_NFT_COMPAT=y
 CONFIG_NFT_REDIR=y
 
+# --- bake `acpi=off` into the kernel cmdline (EXTEND = append to FC's args) ---
+# FC v1.13 advertises virtio devices via BOTH ACPI and the `virtio_mmio.device=`
+# cmdline. With CMDLINE_DEVICES on, ACPI + cmdline register the same device twice
+# -> virtio_blk probe fails -EINVAL -> no /dev/vda. Our rebuild's ACPI also can't
+# load FC's tables ("Unable to load System Description Tables"). `acpi=off` makes
+# the guest ignore ACPI and rely solely on the cmdline devices (validated: vda
+# mounts). Baked into THIS kernel (not the supervisor cmdline) so stock-kernel FC
+# apps, which depend on ACPI + have CMDLINE_DEVICES off, are unaffected.
+CONFIG_CMDLINE_BOOL=y
+CONFIG_CMDLINE="acpi=off"
+CONFIG_CMDLINE_EXTEND=y
+
 # --- default init = /init (generic-FC injects the rendered PID-1 init there as a
 #     regular file). Without this the kernel skips /init and searches
 #     /sbin/init,/etc/init,/bin/init,/bin/sh -> "No working init found". The stock
