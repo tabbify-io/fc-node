@@ -54,6 +54,12 @@ CONFIG_NFT_MASQ=y
 CONFIG_NFT_COMPAT=y
 CONFIG_NFT_REDIR=y
 
+# --- default init = /init (generic-FC injects the rendered PID-1 init there as a
+#     regular file). Without this the kernel skips /init and searches
+#     /sbin/init,/etc/init,/bin/init,/bin/sh -> "No working init found". The stock
+#     kernel had this; our rebuild lost it. This is THE fix for the init panic. ---
+CONFIG_DEFAULT_INIT="/init"
+
 # --- shrink: no debug info -> far less link RAM, smaller vmlinux, faster build ---
 CONFIG_DEBUG_INFO_NONE=y
 

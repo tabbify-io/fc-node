@@ -50,6 +50,10 @@ RUN set -e; for f in \
       CONFIG_BRIDGE CONFIG_VETH CONFIG_OVERLAY_FS CONFIG_TUN CONFIG_VLAN_8021Q \
       CONFIG_NF_NAT CONFIG_IP_NF_TARGET_MASQUERADE CONFIG_NF_TABLES ; do \
       grep -q "^$f=y" .config || { echo "MISSING $f"; exit 1; }; done
+# String config: the kernel must default-exec /init (the injected regular-file
+# PID-1). THE fix for the "No working init found" panic.
+RUN grep -q '^CONFIG_DEFAULT_INIT="/init"' .config \
+ || { echo "MISSING CONFIG_DEFAULT_INIT=/init"; grep -i default_init .config || true; exit 1; }
 # Log which best-effort flags survived (informational, NEVER fatal) — so we can
 # see post-build exactly what docker has, without failing the build on a dep gap.
 RUN for f in \
